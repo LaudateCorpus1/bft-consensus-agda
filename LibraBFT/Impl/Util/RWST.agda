@@ -116,6 +116,12 @@ RWST-Contract{Ev}{Wr}{St}{A} m =
   → let (x , post , outs) = RWST-run m ev pre in
     P x post outs
 
+-- Here we prove that the definition of RWST-weakestPre does indeed
+-- provide a precondition, in that it is sufficient to ensure that
+-- if we prove the precondition for a given property holds in the
+-- prestate, then that property holds in the post state.  This does
+-- not prove it is the weakest precondition, but we don't care about
+-- that.
 RWST-contract : (m : RWST Ev Wr St A) → RWST-Contract m
 RWST-contract (RWST-return x₁) P ev pre wp = wp
 RWST-contract (RWST-bind m f) P ev pre wp
@@ -265,6 +271,7 @@ module RWST-do where
 --------------------------------------------------
 open RWST-do
 
+-- TODO-1: rename this to RWST-wp-map?  RWST-wp-⇒?
 RWST-impl
   : (P Q : RWST-Post Wr St A) → (∀ r st outs → P r st outs → Q r st outs)
     → ∀ m (ev : Ev) st → RWST-weakestPre m P ev st → RWST-weakestPre m Q ev st

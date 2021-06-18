@@ -84,7 +84,6 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 constructAndSignVoteM-continue0 : VoteProposal → ValidatorSigner → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM-continue1 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM-continue2 : VoteProposal → ValidatorSigner →  Block → SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
--- constructAndSignVoteM-continue2-c₃ : VoteProposal → Block → SafetyData → VoteData → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
 
 constructAndSignVoteM : MaybeSignedVoteProposal → LBFT (ErrLog ⊎ VoteWithMeta)
 constructAndSignVoteM maybeSignedVoteProposal = do
@@ -106,6 +105,31 @@ constructAndSignVoteM-continue0 voteProposal validatorSigner = do
           else constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
       nothing → constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0
 
+module constructAndSignVoteM-continue2 (voteProposal : VoteProposal) (validatorSigner : ValidatorSigner)
+                                       (proposedBlock : Block) (safetyData : SafetyData)
+  where
+
+  c₀ : LBFT (ErrLog ⊎ VoteWithMeta)
+  c₁ : SafetyData → LBFT (ErrLog ⊎ VoteWithMeta)
+  c₂ : SafetyData → VoteData → LBFT (ErrLog ⊎ VoteWithMeta)
+  c₃ : SafetyData → VoteData → Author → LedgerInfo → LBFT (ErrLog ⊎ VoteWithMeta)
+
+  c₀ = verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ c₁
+
+  c₁ safetyData1 = do
+    lSafetyData ∙= safetyData1
+    extensionCheckM voteProposal ∙?∙ (c₂ safetyData1)
+
+  c₂ safetyData1 voteData = do
+      let author = validatorSigner ^∙ vsAuthor
+      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ (c₃ safetyData1 voteData author)
+
+  c₃ safetyData1 voteData author ledgerInfo = do
+        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
+            vote      = Vote.newWithSignature voteData author ledgerInfo signature
+        lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
+        ok (VoteWithMeta∙new vote mvsNew)
+
 constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safetyData0 =
   verifyQcM (proposedBlock ^∙ bQuorumCert) ∙?∙ λ _ → do
     validatorVerifier ← gets rmGetValidatorVerifier
@@ -113,14 +137,6 @@ constructAndSignVoteM-continue1 voteProposal validatorSigner proposedBlock safet
       verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙
       constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock
 
-constructAndSignVoteM-continue2 voteProposal validatorSigner proposedBlock safetyData =
-  verifyAndUpdateLastVoteRoundM (proposedBlock ^∙ bBlockData ∙ bdRound) safetyData ∙?∙ λ safetyData1 → do
-    lSafetyData ∙= safetyData1
-    extensionCheckM voteProposal ∙?∙ λ voteData → do
-      let author = validatorSigner ^∙ vsAuthor
-      constructLedgerInfoM proposedBlock (Crypto.hashVD voteData) ∙?∙ λ ledgerInfo → do
-        let signature = ValidatorSigner.sign ⦃ obm-dangerous-magic! ⦄ validatorSigner ledgerInfo
-            vote      = Vote.newWithSignature voteData author ledgerInfo signature
-        lSafetyData ∙= (safetyData1 [ sdLastVote ?= vote ])
-        ok (VoteWithMeta∙new vote mvsNew)
+constructAndSignVoteM-continue2 = constructAndSignVoteM-continue2.c₀
+
 

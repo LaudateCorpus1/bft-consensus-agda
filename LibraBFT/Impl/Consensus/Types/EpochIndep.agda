@@ -579,7 +579,10 @@ module LibraBFT.Impl.Consensus.Types.EpochIndep where
     TooManySignatures    : Usize → Usize → VerifyError
     InvalidSignature     :                 VerifyError
 
-  -- TODO-1: Implement this (low priority)
+  -- TODO-1: Implement actual logging with messages (low priority)
+  -- TODO-1: Replace with this definition to help disambiguate the many "unit"s in proofs
+  -- data ErrLog : Set where
+  --   FakeError : ErrLog
   ErrLog : Set
   ErrLog = Unit
 
