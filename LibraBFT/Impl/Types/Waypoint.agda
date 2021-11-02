@@ -10,9 +10,9 @@ open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.Ledger2WaypointConverter as Ledger2WaypointConverter
 open import LibraBFT.ImplShared.Consensus.Types
 import      LibraBFT.ImplShared.Util.Crypto              as Crypto
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
-
 module LibraBFT.Impl.Types.Waypoint where
 
 newAny : LedgerInfo → Waypoint
@@ -20,19 +20,19 @@ newAny ledgerInfo =
   let converter = Ledger2WaypointConverter.new ledgerInfo
    in Waypoint∙new (ledgerInfo ^∙ liVersion) (Crypto.hashL2WC converter)
 
-newEpochBoundary : LedgerInfo → Either ErrLog Waypoint
+newEpochBoundary : LedgerInfo → EitherD ErrLog Waypoint
 newEpochBoundary ledgerInfo =
-  if ledgerInfo ^∙ liEndsEpoch
+  ifD ledgerInfo ^∙ liEndsEpoch
   then pure (newAny ledgerInfo)
-  else Left fakeErr -- ["newEpochBoundary", "no validator set"]
+  else LeftD fakeErr -- ["newEpochBoundary", "no validator set"]
 
-verify : Waypoint → LedgerInfo → Either ErrLog Unit
+verify : Waypoint → LedgerInfo → EitherD ErrLog Unit
 verify self ledgerInfo = do
-  lcheck (self ^∙ wVersion == ledgerInfo ^∙ liVersion)
-         ("Waypoint" ∷ "version mismatch" ∷ []) --show (self^.wVersion), show (ledgerInfo^.liVersion)]
+  lcheckD (self ^∙ wVersion == ledgerInfo ^∙ liVersion)
+          ("Waypoint" ∷ "version mismatch" ∷ []) --show (self^.wVersion), show (ledgerInfo^.liVersion)]
   let converter = Ledger2WaypointConverter.new ledgerInfo
-  lcheck (self ^∙ wValue == Crypto.hashL2WC converter)
-         ("Waypoint" ∷ "value mismatch" ∷ []) --show (self^.wValue), show (Crypto.hashL2WC converter)]
+  lcheckD (self ^∙ wValue == Crypto.hashL2WC converter)
+          ("Waypoint" ∷ "value mismatch" ∷ []) --show (self^.wValue), show (Crypto.hashL2WC converter)]
   pure unit
 
 epochChangeVerificationRequired : Waypoint → Epoch → Bool
@@ -41,5 +41,5 @@ epochChangeVerificationRequired _self _epoch = true
 isLedgerInfoStale : Waypoint → LedgerInfo → Bool
 isLedgerInfoStale self ledgerInfo = ⌊ (ledgerInfo ^∙ liVersion) <?-Version (self ^∙ wVersion) ⌋
 
-verifierVerify : Waypoint → LedgerInfoWithSignatures → Either ErrLog Unit
+verifierVerify : Waypoint → LedgerInfoWithSignatures → EitherD ErrLog Unit
 verifierVerify self liws = verify self (liws ^∙ liwsLedgerInfo)

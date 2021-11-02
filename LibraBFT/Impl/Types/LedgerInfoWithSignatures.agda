@@ -10,6 +10,7 @@ import      LibraBFT.Impl.OBM.Crypto              as Crypto
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.Impl.Types.ValidatorVerifier as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -26,8 +27,8 @@ addSignature validator sig liws =
     nothing  →
       liws & liwsSignatures ∙~ Map.kvm-insert-Haskell validator sig (liws ^∙ liwsSignatures)
 
-verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → Either ErrLog Unit
-verifySignatures self validator = withErrCtx'
+verifySignatures : LedgerInfoWithSignatures → ValidatorVerifier → EitherD ErrLog Unit
+verifySignatures self validator = withErrCtxD'
   ("LedgerInfoWithSignatures" ∷ "verify" ∷ [])
   (ValidatorVerifier.batchVerifyAggregatedSignatures
      validator (self ^∙ liwsLedgerInfo) (self ^∙ liwsSignatures))

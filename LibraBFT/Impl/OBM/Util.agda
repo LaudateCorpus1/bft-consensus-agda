@@ -7,6 +7,7 @@
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 
 module LibraBFT.Impl.OBM.Util where
@@ -21,9 +22,9 @@ numNodesNeededForNFailures numFaultsAllowed = 3 * numFaultsAllowed + 1
 
 checkBftAndRun : ∀ {names : Set} {b : Set}
                → U64 → List names → (U64 → List names → b)
-               → Either ErrLog b
+               → EitherD ErrLog b
 checkBftAndRun numFailures authors f =
   if-dec length authors <? numNodesNeededForNFailures numFailures
-  then Left fakeErr --(ErrL [ "checkBftAndRun: not enough authors for given number of failures"
+  then LeftD fakeErr --(ErrL [ "checkBftAndRun: not enough authors for given number of failures"
                     --      , show numFailures, show (length authors) ])
   else pure (f numFailures authors)

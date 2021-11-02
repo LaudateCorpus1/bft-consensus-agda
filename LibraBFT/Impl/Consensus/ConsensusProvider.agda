@@ -17,6 +17,7 @@ import      LibraBFT.Impl.OBM.ConfigHardCoded              as ConfigHardCoded
 open import LibraBFT.Impl.OBM.Logging.Logging
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.Prelude                               hiding (_++_)
 open import Optics.All
@@ -27,7 +28,7 @@ module LibraBFT.Impl.Consensus.ConsensusProvider where
 
 obmInitialData
   : GenKeyFile.NfLiwsVsVvPe
-  → Either ErrLog
+  → EitherD ErrLog
            (NodeConfig × OnChainConfigPayload × LedgerInfoWithSignatures × SK × ProposerElection)
 obmInitialData ( _numFaults , genesisLIWS , validatorSigner
                , validatorVerifier , proposerElection ) = do
@@ -69,18 +70,18 @@ startConsensus
   → OnChainConfigPayload → LedgerInfoWithSignatures → SK
   → ObmNeedFetch → ProposalGenerator → StateComputer
   -- END OBM
-  → Either ErrLog (EpochManager × List Output)
+  → EitherD ErrLog (EpochManager × List Output)
 startConsensus nodeConfig
                obmNow
                obmPayload obmGenesisLIWS obmSK
                obmNeedFetch obmProposalGenerator obmStateComputer = do
   let obmValidatorSet = obmPayload ^∙ occpObmValidatorSet
-  eitherS (MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS)) Left $
+  eitherSD (MockStorage.startForTesting obmValidatorSet (just obmGenesisLIWS)) LeftD $
     λ (_obmRecoveryData , persistentLivenessStorage) → do
       let stateComputer = obmStateComputer
-      eitherS (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) Left $
-        λ vi → eitherS (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
-                          (vi ^∙ viAccountAddress) obmSK) Left $
+      eitherSD (ValidatorSet.obmGetValidatorInfo (nodeConfig ^∙ ncObmMe) obmValidatorSet) LeftD $
+        λ vi → eitherSD (EpochManager.new nodeConfig stateComputer persistentLivenessStorage
+                          (vi ^∙ viAccountAddress) obmSK) LeftD $
                  λ epochMgr →
                      EpochManager.start
                        epochMgr obmNow

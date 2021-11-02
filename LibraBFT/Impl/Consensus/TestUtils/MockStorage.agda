@@ -31,7 +31,7 @@ start : MockStorage → Either ErrLog RecoveryData
 
 ------------------------------------------------------------------------------
 
-newWithLedgerInfo : MockSharedStorage → LedgerInfo → Either ErrLog MockStorage
+newWithLedgerInfo : MockSharedStorage → LedgerInfo → EitherD ErrLog MockStorage
 newWithLedgerInfo sharedStorage ledgerInfo = do
   li      ← if ledgerInfo ^∙ liEndsEpoch
             then pure ledgerInfo
@@ -61,7 +61,7 @@ tryStart self =
   here' t = "MockStorage" ∷ "tryStart" ∷ t
 
 startForTesting : ValidatorSet → Maybe LedgerInfoWithSignatures
-                → Either ErrLog (RecoveryData × PersistentLivenessStorage)
+                → EitherD ErrLog (RecoveryData × PersistentLivenessStorage)
 startForTesting validatorSet obmMLIWS = do
   (sharedStorage , genesisLi) ←
     case obmMLIWS of λ where
@@ -71,7 +71,7 @@ startForTesting validatorSet obmMLIWS = do
         (just liws) →
           pure (MockSharedStorage.newObmWithLIWS validatorSet liws , liws ^∙ liwsLedgerInfo)
   storage ← newWithLedgerInfo sharedStorage genesisLi
-  ss      ← withErrCtx' (here' []) (start storage)
+  ss      ← withErrCtxD' (here' []) (start storage)
   pure (ss , storage)
  where
   here' : List String → List String
@@ -133,7 +133,7 @@ saveHighestTimeoutCertificateM tc db = do
 
 retrieveEpochChangeProofE
   : Version → MockStorage
-  → Either ErrLog EpochChangeProof
+  → EitherD ErrLog EpochChangeProof
 retrieveEpochChangeProofE v db = case Map.lookup v (db ^∙ msSharedStorage ∙ mssLis) of λ where
-  nothing    → Left fakeErr -- ["MockStorage", "retrieveEpochChangeProofE", "not found", show v])
+  nothing    → LeftD fakeErr -- ["MockStorage", "retrieveEpochChangeProofE", "not found", show v])
   (just lis) → pure (EpochChangeProof∙new (lis ∷ []) false)

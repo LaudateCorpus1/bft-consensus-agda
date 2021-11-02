@@ -10,6 +10,7 @@ import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.OBM.Util
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -35,7 +36,7 @@ sumVotingPower             : (List String → List String)
 -- IMPL-DIFF : gets an alist instead of list of Author
 initValidatorVerifier
   : U64 → List (Author × (SK × PK))
-  → Either ErrLog ValidatorVerifier
+  → EitherD ErrLog ValidatorVerifier
 initValidatorVerifier numFailures0 authors0 =
   checkBftAndRun numFailures0 authors0 f
  where
@@ -48,9 +49,9 @@ initValidatorVerifier numFailures0 authors0 =
     ; _vvQuorumVotingPower      = numNodesNeededForNFailures numFailures ∸ numFailures
     ; _vvTotalVotingPower       = length authors }
 
-new : Map.KVMap AccountAddress ValidatorConsensusInfo → Either ErrLog ValidatorVerifier
+new : Map.KVMap AccountAddress ValidatorConsensusInfo → EitherD ErrLog ValidatorVerifier
 new addressToValidatorInfo = do
-  totalVotingPower      ← sumVotingPower here' addressToValidatorInfo
+  totalVotingPower      ← fromEither $ sumVotingPower here' addressToValidatorInfo
   let quorumVotingPower = if Map.kvm-size addressToValidatorInfo == 0 then 0
                           else calculateQuorumVotingPower totalVotingPower
   pure (mkValidatorVerifier addressToValidatorInfo quorumVotingPower totalVotingPower)
@@ -138,7 +139,7 @@ getOrderedAccountAddressesObmTODO self =
   -- TODO ORDER
   Map.kvm-keys (self ^∙ vvAddressToValidatorInfo)
 
-from : ValidatorSet → Either ErrLog ValidatorVerifier
+from : ValidatorSet → EitherD ErrLog ValidatorVerifier
 from validatorSet =
   new (foldl' go Map.empty (validatorSet ^∙ vsPayload))
  where

@@ -22,36 +22,36 @@ module LibraBFT.Impl.Consensus.ConsensusTypes.SyncInfo where
 highestRound : SyncInfo → Round
 highestRound self = max (self ^∙ siHighestCertifiedRound) (self ^∙ siHighestTimeoutRound)
 
-verify : SyncInfo → ValidatorVerifier → Either ErrLog Unit
+verify : SyncInfo → ValidatorVerifier → EitherD ErrLog Unit
 
 verifyM : SyncInfo → ValidatorVerifier → LBFT (Either ErrLog Unit)
-verifyM self validator = pure (verify self validator)
+verifyM self validator = pure (toEither $ verify self validator)
 
 module verify (self : SyncInfo) (validator : ValidatorVerifier) where
-  step₀ step₁ step₂ step₃ step₄ step₅ step₆ : Either ErrLog Unit
+  step₀ step₁ step₂ step₃ step₄ step₅ step₆ : EitherD ErrLog Unit
   here' : List String → List String
 
   epoch = self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biEpoch
 
   step₀ = do
-    lcheck (epoch == self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch)
-           (here' ("Multi epoch in SyncInfo - HCC and HQC" ∷ []))
+    lcheckD (epoch == self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biEpoch)
+            (here' ("Multi epoch in SyncInfo - HCC and HQC" ∷ []))
     step₁
 
   step₁ = do
-    lcheck (maybeS (self ^∙ siHighestTimeoutCert) true (λ tc -> epoch == tc ^∙ tcEpoch))
-           (here' ("Multi epoch in SyncInfo - TC and HQC" ∷ []))
+    lcheckD (maybeS (self ^∙ siHighestTimeoutCert) true (λ tc -> epoch == tc ^∙ tcEpoch))
+            (here' ("Multi epoch in SyncInfo - TC and HQC" ∷ []))
     step₂
 
   step₂ = do
-    lcheck (   self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
-           ≥? self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biRound)
-           (here' ("HQC has lower round than HCC" ∷ []))
+    lcheckD (   self ^∙ siHighestQuorumCert ∙ qcCertifiedBlock ∙ biRound
+            ≥? self ^∙ siHighestCommitCert ∙ qcCertifiedBlock ∙ biRound)
+            (here' ("HQC has lower round than HCC" ∷ []))
     step₃
 
   step₃ = do
-    lcheck (self ^∙ siHighestCommitCert ∙ qcCommitInfo /= BlockInfo.empty)
-           (here' ("HCC has no committed block" ∷ []))
+    lcheckD (self ^∙ siHighestCommitCert ∙ qcCommitInfo /= BlockInfo.empty)
+            (here' ("HCC has no committed block" ∷ []))
     step₄
 
   step₄ = do
@@ -61,7 +61,7 @@ module verify (self : SyncInfo) (validator : ValidatorVerifier) where
   step₅ = do
     -- Note: do not use (self ^∙ siHighestCommitCert) because it might be
     -- same as siHighestQuorumCert -- so no need to check again
-    maybeS (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
+    maybeSD (self ^∙ sixxxHighestCommitCert) (pure unit) (` QuorumCert.verify ` validator)
     step₆
 
   step₆ = do

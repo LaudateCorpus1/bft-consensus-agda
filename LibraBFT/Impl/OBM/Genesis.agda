@@ -11,6 +11,7 @@ import      LibraBFT.Impl.Types.ValidatorSigner            as ValidatorSigner
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
 open import LibraBFT.ImplShared.Consensus.Types.EpochIndep
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -18,12 +19,12 @@ module LibraBFT.Impl.OBM.Genesis where
 
 ------------------------------------------------------------------------------
 
-obmMkLedgerInfoWithEpochState : ValidatorSet → Either ErrLog LedgerInfo
+obmMkLedgerInfoWithEpochState : ValidatorSet → EitherD ErrLog LedgerInfo
 
 ------------------------------------------------------------------------------
 
 obmMkGenesisLedgerInfoWithSignatures
-  : List ValidatorSigner → ValidatorSet → Either ErrLog LedgerInfoWithSignatures
+  : List ValidatorSigner → ValidatorSet → EitherD ErrLog LedgerInfoWithSignatures
 obmMkGenesisLedgerInfoWithSignatures vss0 vs0 = do
   liwes    ← obmMkLedgerInfoWithEpochState vs0
   let sigs = fmap (λ vs → (vs ^∙ vsAuthor , ValidatorSigner.sign vs liwes)) vss0

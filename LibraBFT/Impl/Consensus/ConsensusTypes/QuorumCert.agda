@@ -37,23 +37,23 @@ certificateForGenesisFromLedgerInfo ledgerInfo genesisId =
       voteData
       (LedgerInfoWithSignatures∙new li Map.empty)
 
-verify : QuorumCert → ValidatorVerifier → Either ErrLog Unit
+verify : QuorumCert → ValidatorVerifier → EitherD ErrLog Unit
 verify self validator = do
   let voteHash = hashVD (self ^∙ qcVoteData)
-  lcheck (self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash == voteHash)
+  lcheckD (self ^∙ qcSignedLedgerInfo ∙ liwsLedgerInfo ∙ liConsensusDataHash == voteHash)
          (here' ("Quorum Cert's hash mismatch LedgerInfo" ∷ []))
   if (self ^∙ qcCertifiedBlock ∙ biRound == 0)
     -- TODO-?: It would be nice not to require the parens around the do block
     then (do
-      lcheck (self ^∙ qcParentBlock == self ^∙ qcCertifiedBlock)
-             (here' ("Genesis QC has inconsistent parent block with certified block" ∷ []))
-      lcheck (self ^∙ qcCertifiedBlock == self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo)
-             (here' ("Genesis QC has inconsistent commit block with certified block" ∷ []))
-      lcheck (Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) == 0)
-             (here' ("Genesis QC should not carry signatures" ∷ []))
+      lcheckD (self ^∙ qcParentBlock == self ^∙ qcCertifiedBlock)
+              (here' ("Genesis QC has inconsistent parent block with certified block" ∷ []))
+      lcheckD (self ^∙ qcCertifiedBlock == self ^∙ qcLedgerInfo ∙ liwsLedgerInfo ∙ liCommitInfo)
+              (here' ("Genesis QC has inconsistent commit block with certified block" ∷ []))
+      lcheckD (Map.kvm-size (self ^∙ qcLedgerInfo ∙ liwsSignatures) == 0)
+              (here' ("Genesis QC should not carry signatures" ∷ []))
       )
     else do
-      withErrCtx'
+      withErrCtxD'
         ("fail to verify QuorumCert" ∷ [])
         (LedgerInfoWithSignatures.verifySignatures (self ^∙ qcLedgerInfo) validator)
       VoteData.verify (self ^∙ qcVoteData)

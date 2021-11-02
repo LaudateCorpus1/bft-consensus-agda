@@ -46,37 +46,37 @@ newProposalFromBlockDataAndSignature : BlockData → Signature → Block
 newProposalFromBlockDataAndSignature blockData signature =
   Block∙new (hashBD blockData) blockData (just signature)
 
-validateSignature : Block → ValidatorVerifier → Either ErrLog Unit
+validateSignature : Block → ValidatorVerifier → EitherD ErrLog Unit
 validateSignature self validator = case self ^∙ bBlockData ∙ bdBlockType of λ where
-  Genesis             → Left fakeErr -- (ErrL (here' ["do not accept genesis from others"]))
+  Genesis             → LeftD fakeErr -- (ErrL (here' ["do not accept genesis from others"]))
   NilBlock            → QuorumCert.verify (self ^∙ bQuorumCert) validator
   (Proposal _ author) → do
     fromMaybeM
-      (Left fakeErr) -- (ErrL (here' ["Missing signature in Proposal"])))
-      (pure (self ^∙ bSignature)) >>= λ sig -> withErrCtx' (here' [])
+      (LeftD fakeErr) -- (ErrL (here' ["Missing signature in Proposal"])))
+      (pure (self ^∙ bSignature)) >>= λ sig -> withErrCtxD' (here' [])
         (ValidatorVerifier.verify validator author (self ^∙ bBlockData) sig)
     QuorumCert.verify (self ^∙ bQuorumCert) validator
  where
   here' : List String → List String
   here' t = "Block" ∷ "validateSignatures" {-∷ lsB self-} ∷ t
 
-verifyWellFormed : Block → Either ErrLog Unit
+verifyWellFormed : Block → EitherD ErrLog Unit
 verifyWellFormed self = do
-  lcheck (not (isGenesisBlock self))
-         (here' ("Do not accept genesis from others" ∷ []))
+  lcheckD (not (isGenesisBlock self))
+          (here' ("Do not accept genesis from others" ∷ []))
   let parent = self ^∙ bQuorumCert ∙ qcCertifiedBlock
-  lcheck (parent ^∙ biRound <? self ^∙ bRound)
-         (here' ("Block must have a greater round than parent's block" ∷ []))
-  lcheck (parent ^∙ biEpoch == self ^∙ bEpoch)
-         (here' ("block's parent should be in the same epoch" ∷ []))
-  lcheck (not (BlockInfo.hasReconfiguration parent)
-          ∨ maybeHsk true payloadIsEmpty (self ^∙ bPayload))
-         (here' ("Reconfiguration suffix should not carry payload" ∷ []))
+  lcheckD (parent ^∙ biRound <? self ^∙ bRound)
+          (here' ("Block must have a greater round than parent's block" ∷ []))
+  lcheckD (parent ^∙ biEpoch == self ^∙ bEpoch)
+          (here' ("block's parent should be in the same epoch" ∷ []))
+  lcheckD (not (BlockInfo.hasReconfiguration parent)
+           ∨ maybeHsk true payloadIsEmpty (self ^∙ bPayload))
+          (here' ("Reconfiguration suffix should not carry payload" ∷ []))
   -- timestamps go here -- Haskell removed them
-  lcheck (not (self ^∙ bQuorumCert ∙ qcEndsEpoch))
-         (here' ("Block cannot be proposed in an epoch that has ended" ∷ []))
-  lcheck (self ^∙ bId == hashBD (self ^∙ bBlockData))
-         (here' ("Block id hash mismatch" ∷ []))
+  lcheckD (not (self ^∙ bQuorumCert ∙ qcEndsEpoch))
+          (here' ("Block cannot be proposed in an epoch that has ended" ∷ []))
+  lcheckD (self ^∙ bId == hashBD (self ^∙ bBlockData))
+          (here' ("Block id hash mismatch" ∷ []))
  where
   here' : List String → List String
   here' t = "Block" ∷ "verifyWellFormed" {-∷ lsB self-} ∷ t

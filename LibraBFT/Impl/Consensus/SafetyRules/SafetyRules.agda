@@ -146,7 +146,7 @@ verifyAndUpdateLastVoteRoundM round safetyData =
 verifyQcM : QuorumCert → LBFT (Either ErrLog Unit)
 verifyQcM qc = do
   validatorVerifier ← use (lRoundManager ∙ srValidatorVerifier)
-  pure (QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtx ("InvalidQuorumCertificate" ∷ [])
+  pure (toEither $ QuorumCert.verify qc validatorVerifier) ∙^∙ withErrCtx ("InvalidQuorumCertificate" ∷ [])
 
 ------------------------------------------------------------------------------
 
@@ -160,52 +160,52 @@ consensusState self =
 -- ** NOTE: PAY PARTICULAR ATTENTION TO THIS FUNCTION **
 -- ** Because : it is long with lots of branches, so easy to transcribe wrong. **
 -- ** And if initialization is wrong, everything is wrong. **
-initialize : SafetyRules → EpochChangeProof → Either ErrLog SafetyRules
+initialize : SafetyRules → EpochChangeProof → EitherD ErrLog SafetyRules
 initialize self proof = do
   let waypoint   = self ^∙ srPersistentStorage ∙ pssWaypoint
-  lastLi         ← withErrCtx' (here' ("EpochChangeProof.verify" ∷ []))
-                               (        EpochChangeProof.verify proof waypoint)
+  lastLi         ← withErrCtxD' (here' ("EpochChangeProof.verify" ∷ []))
+                                (        EpochChangeProof.verify proof waypoint)
   let ledgerInfo = lastLi ^∙ liwsLedgerInfo
-  epochState     ← maybeS (ledgerInfo ^∙ liNextEpochState)
-                          (Left fakeErr) -- ["last ledger info has no epoch state"]
-                          pure
+  epochState     ← maybeSD (ledgerInfo ^∙ liNextEpochState)
+                           (LeftD fakeErr) -- ["last ledger info has no epoch state"]
+                           pure
   let currentEpoch = self ^∙ srPersistentStorage ∙ pssSafetyData ∙ sdEpoch
   if-dec currentEpoch <? epochState ^∙ esEpoch
     then (do
-      waypoint'  ← withErrCtx' (here' ("Waypoint.newEpochBoundary" ∷ []))
-                               (        Waypoint.newEpochBoundary ledgerInfo)
+      waypoint'  ← withErrCtxD' (here' ("Waypoint.newEpochBoundary" ∷ []))
+                                (        Waypoint.newEpochBoundary ledgerInfo)
       continue1 (self & srPersistentStorage ∙ pssWaypoint    ∙~ waypoint'
                       & srPersistentStorage ∙ pssSafetyData  ∙~
                           SafetyData∙new (epochState ^∙ esEpoch) {-Round-} 0 {-Round-} 0 nothing)
                 epochState)
     else continue1 self epochState
  where
-  continue2 : SafetyRules → EpochState → Either ErrLog SafetyRules
+  continue2 : SafetyRules → EpochState → EitherD ErrLog SafetyRules
   here'     : List String → List String
 
-  continue1 : SafetyRules → EpochState → Either ErrLog SafetyRules
+  continue1 : SafetyRules → EpochState → EitherD ErrLog SafetyRules
   continue1 self1 epochState =
     continue2 (self1 & srEpochState ?~ epochState) epochState
 
   continue2 self2 epochState = do
     let author = self2 ^∙ srPersistentStorage ∙ pssAuthor
-    maybeS (ValidatorVerifier.getPublicKey (epochState ^∙ esVerifier) author)
-      (Left fakeErr) -- ["ValidatorNotInSet", lsA author] $
+    maybeSD (ValidatorVerifier.getPublicKey (epochState ^∙ esVerifier) author)
+      (LeftD fakeErr) -- ["ValidatorNotInSet", lsA author] $
       λ expectedKey → do
         let currKey = eitherS (signer self2)
                       (const nothing)
                       (just ∘ ValidatorSigner.publicKey_USE_ONLY_AT_INIT)
         grd‖ currKey == just expectedKey ≔
-             Right self2
+             RightD self2
 
            ‖ self2 ^∙ srExportConsensusKey ≔ (do
-              consensusKey ← withErrCtx' (here' ("ValidatorKeyNotFound" ∷ []))
+              consensusKey ← withErrCtxD' (here' ("ValidatorKeyNotFound" ∷ []))
                 (PersistentSafetyStorage.consensusKeyForVersion
                   (self2 ^∙ srPersistentStorage) expectedKey)
-              Right (self2 & srValidatorSigner ?~ ValidatorSigner∙new author consensusKey))
+              RightD (self2 & srValidatorSigner ?~ ValidatorSigner∙new author consensusKey))
 
            ‖ otherwise≔
-             Left fakeErr -- ["srExportConsensusKey", "False", "NOT IMPLEMENTED"]
+             LeftD fakeErr -- ["srExportConsensusKey", "False", "NOT IMPLEMENTED"]
   here' t = "SafetyRules" ∷ "initialize" ∷ t
 
 ------------------------------------------------------------------------------
@@ -258,7 +258,7 @@ module constructAndSignVoteM-continue1
       step₂ validatorVerifier
 
   step₂ validatorVerifier =
-      pure (Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
+      pure (toEither $ Block.validateSignature proposedBlock validatorVerifier) ∙?∙ λ _ → step₃
 
   step₃ =
         verifyAndUpdatePreferredRoundM (proposedBlock ^∙ bQuorumCert) safetyData0 ∙?∙

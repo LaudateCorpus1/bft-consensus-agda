@@ -7,9 +7,10 @@
 import      LibraBFT.Impl.Types.BlockInfo             as BlockInfo
 import      LibraBFT.Impl.Crypto.Crypto.Hash          as Hash
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.LedgerInfo where
 
-mockGenesis : Maybe ValidatorSet → Either ErrLog LedgerInfo
+mockGenesis : Maybe ValidatorSet → EitherD ErrLog LedgerInfo
 mockGenesis mvs = LedgerInfo∙new <$> BlockInfo.mockGenesis mvs <*> pure Hash.valueZero

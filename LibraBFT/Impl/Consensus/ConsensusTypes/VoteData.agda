@@ -14,17 +14,17 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.VoteData where
 
-verify : VoteData → Either ErrLog Unit
+verify : VoteData → EitherD ErrLog Unit
 verify self = do
-  lcheck (self ^∙ vdParent ∙ biEpoch == self ^∙ vdProposed ∙ biEpoch)
-         ("parent and proposed epochs do not match" ∷ [])
-  lcheck (⌊ self ^∙ vdParent ∙ biRound <?  self ^∙ vdProposed ∙ biRound ⌋)
-         ("proposed round is less than parent round" ∷ [])
-  -- lcheck (self^.vdParent.biTimestamp <= self^.vdProposed.biTimestamp)
-  --       ["proposed happened before parent"]
-  lcheck (⌊ (self ^∙ vdParent ∙ biVersion) ≤?-Version (self ^∙ vdProposed ∙ biVersion) ⌋)
-         ("proposed version is less than parent version" ∷ [])
-         -- , lsVersion (self^.vdProposed.biVersion), lsVersion (self^.vdParent.biVersion)]
+  lcheckD (self ^∙ vdParent ∙ biEpoch == self ^∙ vdProposed ∙ biEpoch)
+          ("parent and proposed epochs do not match" ∷ [])
+  lcheckD (⌊ self ^∙ vdParent ∙ biRound <?  self ^∙ vdProposed ∙ biRound ⌋)
+          ("proposed round is less than parent round" ∷ [])
+  -- lcheckD (self^.vdParent.biTimestamp <= self^.vdProposed.biTimestamp)
+  --        ["proposed happened before parent"]
+  lcheckD (⌊ (self ^∙ vdParent ∙ biVersion) ≤?-Version (self ^∙ vdProposed ∙ biVersion) ⌋)
+          ("proposed version is less than parent version" ∷ [])
+          -- , lsVersion (self^.vdProposed.biVersion), lsVersion (self^.vdParent.biVersion)]
 
 new : BlockInfo → BlockInfo → VoteData
 new = VoteData∙new

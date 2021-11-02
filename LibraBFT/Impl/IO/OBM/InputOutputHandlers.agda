@@ -31,7 +31,7 @@ module handleProposal (now : Instant) (pm : ProposalMsg) where
     step₁ myEpoch vv
 
   step₁ myEpoch vv = do
-    case⊎D Network.processProposal {- {!!} -} pm myEpoch vv of λ where
+    case toEither $ Network.processProposal {- {!!} -} pm myEpoch vv of λ where
       (Left (Left e))  → logErr e
       (Left (Right i)) → logInfo i
       (Right _)        → RoundManager.processProposalMsgM now pm

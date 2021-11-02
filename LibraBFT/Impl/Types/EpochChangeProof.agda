@@ -10,6 +10,7 @@ open import LibraBFT.Base.Types
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.Verifier        as Verifier
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -35,13 +36,13 @@ obmLastEpoch self = eitherS (obmLastLIWS self) (const ({-Epoch-} 0)) (_^∙ liws
 verify
   : {verifier : Set} ⦃ _ : Verifier.Verifier verifier ⦄
   → EpochChangeProof → verifier
-  → Either ErrLog LedgerInfoWithSignatures
+  → EitherD ErrLog LedgerInfoWithSignatures
 verify self verifier = do
-  lcheck (not (null (self ^∙ ecpLedgerInfoWithSigs)))
-         (here' ("empty" ∷ []))
+  lcheckD (not (null (self ^∙ ecpLedgerInfoWithSigs)))
+                     (here' ("empty" ∷ []))
   lastLedgerInfoWithSigs ← last (self ^∙ ecpLedgerInfoWithSigs)
-  lcheckInfo (not (Verifier.isLedgerInfoStale verifier (lastLedgerInfoWithSigs ^∙ liwsLedgerInfo)))
-             (here' ("stale" ∷ []))
+  lcheckInfoD (not (Verifier.isLedgerInfoStale verifier (lastLedgerInfoWithSigs ^∙ liwsLedgerInfo)))
+              (here' ("stale" ∷ []))
       -- Skip stale ledger infos in the proof prefix.
   let ledgerInfosWithSigs =
         List.boolFilter
@@ -52,24 +53,25 @@ verify self verifier = do
   loop verifier ledgerInfosWithSigs
 
   pure lastLedgerInfoWithSigs
+
  where
   loop
     : {verifier : Set} ⦃ _ : Verifier.Verifier verifier ⦄
     → verifier → List LedgerInfoWithSignatures
-    → Either ErrLog Unit
+    → EitherD ErrLog Unit
   loop verifierRef = λ where
     [] → pure unit
     (liws ∷ liwss) → do
       Verifier.verify verifierRef liws
       verifierRef' ← case liws ^∙ liwsLedgerInfo ∙ liNextEpochState of λ where
-        nothing   → Left fakeErr -- ["empty ValidatorSet"]
+        nothing   → LeftD fakeErr -- ["empty ValidatorSet"]
         (just vs) → pure vs
       loop verifierRef' liwss
 
   here' : List String → List String
   here' t = "EpochChangeProof" ∷ "verify" ∷ t
 
-  last : ∀ {A : Set} → List A → Either ErrLog A
-  last          []  = Left fakeErr
-  last     (x ∷ []) = Right x
+  last : ∀ {A : Set} → List A → EitherD ErrLog A
+  last          []  = LeftD fakeErr
+  last     (x ∷ []) = RightD x
   last (_ ∷ x ∷ xs) = last xs

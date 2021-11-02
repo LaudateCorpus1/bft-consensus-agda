@@ -11,6 +11,7 @@ open import LibraBFT.Impl.OBM.Crypto                        hiding (verify)
 open import LibraBFT.Impl.OBM.Logging.Logging
 import      LibraBFT.Impl.Types.ValidatorVerifier           as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 ------------------------------------------------------------------------------
@@ -28,18 +29,18 @@ newWithSignature : VoteData → Author → LedgerInfo → Signature → Vote
 newWithSignature voteData author ledgerInfo signature =
   Vote∙new voteData author ledgerInfo signature nothing
 
-verify : Vote → ValidatorVerifier → Either ErrLog Unit
+verify : Vote → ValidatorVerifier → EitherD ErrLog Unit
 verify self validator = do
-  lcheck (self ^∙ vLedgerInfo ∙ liConsensusDataHash == hashVD (self ^∙ vVoteData))
-         (here' ("Vote's hash mismatch with LedgerInfo" ∷ []))
-  withErrCtx' (here' ("vote" ∷ []))
+  lcheckD (self ^∙ vLedgerInfo ∙ liConsensusDataHash == hashVD (self ^∙ vVoteData))
+          (here' ("Vote's hash mismatch with LedgerInfo" ∷ []))
+  withErrCtxD' (here' ("vote" ∷ []))
     (ValidatorVerifier.verify validator (self ^∙ vAuthor) (self ^∙ vLedgerInfo) (self ^∙ vSignature))
   case self ^∙ vTimeoutSignature of λ where
     nothing    → pure unit
     (just tos) →
-      withErrCtx' (here' ("timeout" ∷ []))
+      withErrCtxD' (here' ("timeout" ∷ []))
         (ValidatorVerifier.verify validator (self ^∙ vAuthor) (timeout self) tos)
-  withErrCtx' (here' ("VoteData" ∷ [])) (VoteData.verify (self ^∙ vVoteData))
+  withErrCtxD' (here' ("VoteData" ∷ [])) (VoteData.verify (self ^∙ vVoteData))
  where
   here' : List String → List String
   here' t = "Vote" ∷ "verify" ∷ "failed" {-∷lsV self-} ∷ t

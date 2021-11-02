@@ -65,7 +65,7 @@ preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-init rm×acts un
 
 preferredRound₁ {pid} {pid'} {pk = pk} {pre} preach sps@(step-msg {sndr , P vm} vm'∈pool ini) {v = v} {m = m} {v' = v'} {m' = m'}
                 hpk v'⊂m' m'∈acts sig' ¬bootstrap' pcs4' v⊂m m∈pool sig ¬bootstrap eid≡ rnd< v≈vabs v'≈vabs'
-                c3 = obm-dangerous-magic' "Extend and use handleProposalSpec.contract"
+                c3 = {!!}
 
 preferredRound₁ {pid} {pre = pre} preach sps@(step-msg {_ , V vm} _ _)
                 _ v'⊂m' m'∈acts sig' ¬bootstrap' ¬msb _ _ _ _ _ _ _ _ _

@@ -16,13 +16,13 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.TimeoutCertificate where
 
-verify : TimeoutCertificate → ValidatorVerifier → Either ErrLog Unit
+verify : TimeoutCertificate → ValidatorVerifier → EitherD ErrLog Unit
 verify self validator =
-  withErrCtx' ("TimeoutCertificate" ∷ "verify" ∷ "failed" ∷ [])
+  withErrCtxD' ("TimeoutCertificate" ∷ "verify" ∷ "failed" ∷ [])
   (ValidatorVerifier.verifyAggregatedStructSignature
     validator (self ^∙ tcTimeout) (self ^∙ tcSignatures))
 
-verify' : Maybe TimeoutCertificate → ValidatorVerifier → Either ErrLog Unit
+verify' : Maybe TimeoutCertificate → ValidatorVerifier → EitherD ErrLog Unit
 verify' mtc validator = maybeSMP (pure mtc) unit (` verify ` validator)
 
 -- HC-TODO : refactor this and LedgerInfoWithSignatures

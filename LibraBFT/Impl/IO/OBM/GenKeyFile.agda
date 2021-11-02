@@ -16,6 +16,7 @@ import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Base.Types
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 
 module LibraBFT.Impl.IO.OBM.GenKeyFile where
@@ -28,10 +29,10 @@ AddressToSkAndPkAssocList = List (EndpointAddress × (SK × PK))
 ------------------------------------------------------------------------------
 genKeys   : {-Crypto.SystemDRG →-} ℕ   → List (SK × PK)
 mkAuthors : {-Crypto.SystemDRG →-} U64 → List EndpointAddress
-          → Either ErrLog AddressToSkAndPkAssocList
+          → EitherD ErrLog AddressToSkAndPkAssocList
 mkValidatorSignersAndVerifierAndProposerElection
           : U64 → AddressToSkAndPkAssocList
-          → Either ErrLog (List ValidatorSigner × ValidatorVerifier × ProposerElection)
+          → EitherD ErrLog (List ValidatorSigner × ValidatorVerifier × ProposerElection)
 ------------------------------------------------------------------------------
 
 NfLiwsVssVvPe =
@@ -42,14 +43,14 @@ NfLiwsVsVvPe =
 
 create'
   : U64 → List EndpointAddress {-→ SystemDRG-}
-  → Either ErrLog
+  → EitherD ErrLog
     ( U64 × AddressToSkAndPkAssocList
     × List ValidatorSigner × ValidatorVerifier × ProposerElection × LedgerInfoWithSignatures )
 create' numFailures addresses {-drg-} = do
  authors       ← mkAuthors {-drg-} numFailures addresses
  (s , vv , pe) ← mkValidatorSignersAndVerifierAndProposerElection numFailures authors
- case Genesis.obmMkGenesisLedgerInfoWithSignatures s (ValidatorSet.obmFromVV vv) of λ where
-       (Left err)   → Left err
+ case toEither $ Genesis.obmMkGenesisLedgerInfoWithSignatures s (ValidatorSet.obmFromVV vv) of λ where
+       (Left err)   → LeftD err
        (Right liws) → pure (numFailures , authors , s , vv , pe , liws)
 
 abstract
@@ -63,7 +64,7 @@ mkAuthors {-drg-} numFailures0 addresses0 = do
  where
   f : ℕ → List EndpointAddress → AddressToSkAndPkAssocList
   f _numFailures addresses = zip addresses (genKeys {-drg-} (length addresses))
-  checkAddresses : Either ErrLog (List EndpointAddress)
+  checkAddresses : EitherD ErrLog (List EndpointAddress)
   checkAddresses = pure addresses0
 
 postulate -- Valid assumption: secret and public keys for each NodeId

@@ -10,6 +10,7 @@ import      LibraBFT.Impl.IO.OBM.GenKeyFile           as GenKeyFile
 import      LibraBFT.Impl.IO.OBM.ObmNeedFetch         as ObmNeedFetch
 import      LibraBFT.Impl.Types.ValidatorSigner       as ValidatorSigner
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.ImplShared.Interface.Output
 open import LibraBFT.Prelude
 open import Optics.All
@@ -44,7 +45,7 @@ startViaConsensusProvider
   : Instant
   → GenKeyFile.NfLiwsVsVvPe
   → TxTypeDependentStuffForNetwork
-  → Either ErrLog (EpochManager × List Output)
+  → EitherD ErrLog (EpochManager × List Output)
 startViaConsensusProvider now (nf , liws , vs , vv , pe) txTDS = do
   (nc , occp , _liws , sk , _pe) ← ConsensusProvider.obmInitialData (nf , liws , vs , vv , pe)
   ConsensusProvider.startConsensus

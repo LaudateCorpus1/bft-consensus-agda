@@ -10,6 +10,7 @@ import      LibraBFT.Impl.OBM.Crypto                       as Crypto
 import      LibraBFT.Impl.Types.OnChainConfig.ValidatorSet as ValidatorSet
 import      LibraBFT.Impl.Types.ValidatorVerifier          as ValidatorVerifier
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 open import Optics.All
 
@@ -33,7 +34,7 @@ empty = BlockInfo∙new
   gENESIS_VERSION
   nothing
 
-genesis : HashValue → ValidatorSet → Either ErrLog BlockInfo
+genesis : HashValue → ValidatorSet → EitherD ErrLog BlockInfo
 genesis genesisStateRootHash validatorSet = do
   vv ← ValidatorVerifier.from validatorSet
   pure $ BlockInfo∙new
@@ -45,7 +46,7 @@ genesis genesisStateRootHash validatorSet = do
   --gENESIS_TIMESTAMP_USECS
     (just (EpochState∙new {-Epoch-} 1 vv))
 
-mockGenesis : Maybe ValidatorSet → Either ErrLog BlockInfo
+mockGenesis : Maybe ValidatorSet → EitherD ErrLog BlockInfo
 mockGenesis
   = genesis
     (Crypto.obmHashVersion gENESIS_VERSION) -- OBM-LBFT-DIFF : Crypto.aCCUMULATOR_PLACEHOLDER_HASH

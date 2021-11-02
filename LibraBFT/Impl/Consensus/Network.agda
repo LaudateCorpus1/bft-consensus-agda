@@ -16,18 +16,18 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.Network where
 
-processProposal : {- NodeId → -} ProposalMsg → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
+processProposal : {- NodeId → -} ProposalMsg → Epoch → ValidatorVerifier → EitherD (Either ErrLog InfoLog) Unit
 processProposal {- peerId -} proposal myEpoch vv =
-  case pProposal of λ where
-    (Left e) → Left (Left e)
+  case toEither $ pProposal of λ where
+    (Left e) → LeftD (Left e)
     (Right unit) →
       grd‖ proposal ^∙ pmProposal ∙ bEpoch == myEpoch ≔
            pure unit
          -- TODO : push this onto a queue if epoch is in future (is this still relevant?)
          ‖ proposal ^∙ pmProposal ∙ bEpoch == myEpoch + 1 ≔
-           Left (Right fakeInfo) -- proposal in new epoch arrived before my epoch change
+           LeftD (Right fakeInfo) -- proposal in new epoch arrived before my epoch change
          ‖ otherwise≔
-           Left (Left fakeErr)   -- proposal for wrong epoch
+           LeftD (Left fakeErr)   -- proposal for wrong epoch
   where
   pProposal = do
     ProposalMsg.verify proposal vv
@@ -38,7 +38,7 @@ processProposal {- peerId -} proposal myEpoch vv =
 
 processVote : {- NodeId → -} VoteMsg → Epoch → ValidatorVerifier → Either (Either ErrLog InfoLog) Unit
 processVote {- peerId -} voteMsg myEpoch vv =
-  case pVote of λ where
+  case toEither $ pVote of λ where
     (Left e) → Left (Left e)
     (Right unit) →
       grd‖ voteMsg ^∙ vmEpoch == myEpoch ≔
@@ -57,7 +57,7 @@ processVote {- peerId -} voteMsg myEpoch vv =
   where
  -- here t = "Network" ∷ "processVote" ∷ lsVM voteMsg ∷ t
 
-  pVote : Either ErrLog Unit
+  pVote : EitherD ErrLog Unit
   pVote = do
  -- See comment above about checking which peer *sent* the message.
  -- lcheck (voteMsg ^∙ vmVote ∙ vAuthor == peerId)

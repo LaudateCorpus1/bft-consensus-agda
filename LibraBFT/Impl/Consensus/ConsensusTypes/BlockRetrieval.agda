@@ -25,12 +25,12 @@ open import Data.String                                       using (String)
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.BlockRetrieval where
 
-verify : BlockRetrievalResponse → HashValue → U64 → ValidatorVerifier → Either ErrLog Unit
+verify : BlockRetrievalResponse → HashValue → U64 → ValidatorVerifier → EitherD ErrLog Unit
 verify self blockId numBlocks sigVerifier =
   grd‖ self ^∙ brpStatus /= BRSSucceeded ≔
-       Left fakeErr -- here ["/= BRSSucceeded"]
+       LeftD fakeErr -- here ["/= BRSSucceeded"]
      ‖ length (self ^∙ brpBlocks) /= numBlocks ≔
-       Left fakeErr -- here ["not enough blocks returned", show (self^.brpBlocks), show numBlocks]
+       LeftD fakeErr -- here ["not enough blocks returned", show (self^.brpBlocks), show numBlocks]
      ‖ otherwise≔
        verifyBlocks (self ^∙ brpBlocks)
  where
@@ -39,12 +39,12 @@ verify self blockId numBlocks sigVerifier =
 
   verifyBlock : HashValue → Block → Either ErrLog HashValue
 
-  verifyBlocks : List Block → Either ErrLog Unit
-  verifyBlocks blks = foldM_ verifyBlock blockId blks
+  verifyBlocks : List Block → EitherD ErrLog Unit
+  verifyBlocks blks = fromEither $ foldM_ verifyBlock blockId blks
 
   verifyBlock expectedId block = do
-    Block.validateSignature block sigVerifier
-    Block.verifyWellFormed  block
+    toEither $ Block.validateSignature block sigVerifier
+    toEither $ Block.verifyWellFormed  block
     lcheck (block ^∙ bId == expectedId)
            (here' ("blocks do not form a chain" ∷ [])) -- lsHV (block^.bId), lsHV expectedId
     pure (block ^∙ bParentId)

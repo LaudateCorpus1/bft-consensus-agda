@@ -51,8 +51,17 @@ lcheck b t = case check (toBool b) t of λ where
   (Left  e) → Left  fakeErr -- (ErrL [e])
   (Right r) → Right r
 
-lcheckInfo : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → Either ErrLog Unit
+lcheckD : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → EitherD ErrLog Unit
+lcheckD b t = case check (toBool b) t of λ where
+  (Left  e) → LeftD  fakeErr -- (ErrL [e])
+  (Right r) → RightD r
 
+lcheckInfo : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → Either ErrLog Unit
 lcheckInfo b t = case check (toBool b) t of λ where
   (Left  _) → Left (ErrInfo fakeInfo {-InfoL [e]-})
   (Right r) → Right r
+
+lcheckInfoD : ∀ {ℓ} {B : Set ℓ} ⦃ _ : ToBool B ⦄ → B → List String → EitherD ErrLog Unit
+lcheckInfoD b t = case check (toBool b) t of λ where
+  (Left  _) → LeftD (ErrInfo fakeInfo {-InfoL [e]-})
+  (Right r) → RightD r

@@ -50,7 +50,7 @@ retrieveBlockForQCM _retriever qc numBlocks =
               logIt fakeInfo -- (here [lsBRP response])
               vv ← use (lRoundManager ∙ rmEpochState ∙ esVerifier)
               -- LBFT-OBM-DIFF/TODO : this should live in a "network" module
-              case BlockRetrieval.verify response (request ^∙ brqBlockId) (request ^∙ brqNumBlocks) vv of λ where
+              case toEither $ BlockRetrieval.verify response (request ^∙ brqBlockId) (request ^∙ brqNumBlocks) vv of λ where
                 (Left  e) → bail (withErrCtx (here' []) e)
                 (Right _) → ok   (response ^∙ brpBlocks)
             BRSIdNotFound      → doLoop blockId attempt peers

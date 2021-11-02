@@ -14,9 +14,9 @@ open import Optics.All
 
 module LibraBFT.Impl.Consensus.ConsensusTypes.VoteMsg where
 
-verify : VoteMsg → ValidatorVerifier → Either ErrLog Unit
+verify : VoteMsg → ValidatorVerifier → EitherD ErrLog Unit
 verify self validator = do
-  lcheck (self ^∙ vmVote ∙ vEpoch == self ^∙ vmSyncInfo ∙ siEpoch)
-         -- (here $ "VoteMsg has different epoch" ∷ lsSI (self ^∙ vmSyncInfo) ∷ [])
-         ("VoteMsg has different epoch" ∷ [])
+  lcheckD (self ^∙ vmVote ∙ vEpoch == self ^∙ vmSyncInfo ∙ siEpoch)
+          -- (here $ "VoteMsg has different epoch" ∷ lsSI (self ^∙ vmSyncInfo) ∷ [])
+          ("VoteMsg has different epoch" ∷ [])
   Vote.verify (self ^∙ vmVote) validator

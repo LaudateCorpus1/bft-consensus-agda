@@ -10,13 +10,14 @@ open import LibraBFT.Base.PKCS                  hiding (verify)
 import      LibraBFT.Impl.Types.EpochState      as EpochState
 import      LibraBFT.Impl.Types.Waypoint        as Waypoint
 open import LibraBFT.ImplShared.Consensus.Types
+open import LibraBFT.ImplShared.Util.Util
 open import LibraBFT.Prelude
 
 module LibraBFT.Impl.Types.Verifier where
 
-record Verifier (A : Set) : Set where
+record Verifier (A : Set) : Set₁ where
   field
-    verify                          : A → LedgerInfoWithSignatures → Either ErrLog Unit
+    verify                          : A → LedgerInfoWithSignatures → EitherD ErrLog Unit
     epochChangeVerificationRequired : A → Epoch                    → Bool
     isLedgerInfoStale               : A → LedgerInfo               → Bool
     ⦃ encodeA ⦄                     : Encoder A
