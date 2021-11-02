@@ -82,8 +82,8 @@ module initRMWithOutputSpec
   -}
 
   -- TODO: Maybe we can streamline so we don't need these two rewrites?
-  contract : Contract (initRMWithOutput-abs bsi vs)
-  contract rewrite initRMWithOutput-abs≡ | (initRMWithOutput≡ {bsi} {vs}) =
+  contract : Contract (initRMWithOutput bsi vs)
+  contract rewrite initRMWithOutput-ed≡ {bsi} {vs} =
     EitherD-contract (initRMWithOutput-ed bsi vs) Contract contract'
 
 ------------------------------------------------------------------------------
@@ -113,7 +113,7 @@ module initHandlerSpec
   ...| Right vs
     with initRMWithOutputSpec.contract bsi vs
   ...| initRMWithOutputContractOk
-    with initRMWithOutput-abs bsi  vs
+    with initRMWithOutput bsi  vs
   ...| Left _ = absurd nothing ≡ just (rm , acts) case hndl≡just of λ ()
   ...| Right rm×outs rewrite sym (cong proj₂ (just-injective hndl≡just)) |
                                  (cong proj₁ (just-injective hndl≡just)) =
