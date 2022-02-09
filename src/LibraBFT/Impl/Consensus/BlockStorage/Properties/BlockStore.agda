@@ -10,6 +10,7 @@ open import LibraBFT.Impl.Consensus.BlockStorage.BlockStore
 import      LibraBFT.Impl.Consensus.BlockStorage.BlockTree    as BlockTree
 open import LibraBFT.Impl.Consensus.ConsensusTypes.Vote       as Vote
 import      LibraBFT.Impl.Consensus.PersistentLivenessStorage as PersistentLivenessStorage
+import      LibraBFT.Impl.Consensus.StateComputerByteString   as SCBS
 open import LibraBFT.Impl.OBM.Rust.RustTypes
 open import LibraBFT.Impl.Properties.Util
 open import LibraBFT.ImplShared.Base.Types
@@ -124,10 +125,9 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
       open EB.ContractOk
 
       contract₂ : EitherD-weakestPre (step₂ bsr) Contract
-      proj₂ contract₂ eb eb≡ ._             executeBlockE≡Right@refl = let con = (EB.contract (eb , eb≡))
-                                                                       in contract₃ eb
-                                                                                    (EB.ContractOk.ebBlock≡ con)
-
+      proj₂ contract₂ eb eb≡ ._             executeBlockE≡Right@refl
+         with EitherD-contract (executeBlockE bs0 block) EB.Contract EB.contract
+      ...| con rewrite executeBlockE-Either-ret eb≡ = contract₃ eb (ebBlock≡ con)
       proj₁ contract₂ (ErrCBlockNotFound _) executeBlockE≡Left = tt
       proj₁ contract₂ (ErrVerify _)         executeBlockE≡Left = tt
       proj₁ contract₂ (ErrInfo _)           executeBlockE≡Left = tt
@@ -143,17 +143,12 @@ module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
       -- analysis on the result of calling the abstract executeBlockE variant, ensuring we must use the contract for
       -- executeBlockE because the proof cannot "look into" the implementation of executeBlockE, which makes the proof
       -- more resilient in case of changes in its implementation.
-      -- TODO-2: clean this up by writing a general version of the contract for executeBlockE
-      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _
-        with  executeBlockE bs0  block | inspect
-             (executeBlockE bs0) block
-      ... | Left  x | [ R ] rewrite executeBlockE≡ R = tt
-      ... | Right y | [ R ] rewrite executeBlockE≡ R =
-        λ where c refl ._ refl →
-                  let con = EB.contract (c , R) in
-                  contract₃ c
-                            (ebBlock≡ con)
-                            _ refl
+      proj₂ (proj₂ (proj₁ contract₂ (ErrECCBlockNotFound parentBlockId) executeBlockE≡Left) blocksToReexecute btr≡) _ _ =
+        EB.contract' _ con⇒bindPost
+        where
+            con⇒bindPost : EitherD-Post-⇒ _ (EitherD-weakestPre-bindPost step₃ Contract)
+            con⇒bindPost (Left _)  _   = tt
+            con⇒bindPost (Right _) con = λ where eb' refl ._ refl → contract₃ eb' (EB.ContractOk.ebBlock≡ con) _ refl
 
       contract₃ eb refl _ _ = contract₄
         where
