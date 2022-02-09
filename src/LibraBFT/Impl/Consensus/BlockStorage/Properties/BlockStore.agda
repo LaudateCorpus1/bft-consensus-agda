@@ -47,18 +47,26 @@ module new
   postulate
     contract : ∀ {eci}
              → Contract eci (new-e-abs storage initialData stateComp maxPrunedBlocksInMem)
-module executeBlockESpec (bs : BlockStore) (block : Block) where
 
-  Ok : Set
-  Ok = ∃[ eb ] (executeBlockE bs block ≡ Right eb)
+module executeBlockESpec (bs : BlockStore) (block : Block) where
 
   record ContractOk (eb : ExecutedBlock) : Set where
     constructor mkContractOk
     field
       ebBlock≡ : block ≡ eb ^∙ ebBlock
 
-  postulate -- TODO: prove
-    contract : (isOk : Ok) → ContractOk (proj₁ isOk)
+  Contract : EitherD-Post ErrLog _
+  Contract (Left _)  = Unit
+  Contract (Right y) = ContractOk y
+
+  contract : EitherD-weakestPre (executeBlockE bs block) Contract
+  contract rewrite executeBlockE≡
+     with SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId)
+  ...| Left _  = unit
+  ...| Right _ = mkContractOk refl
+
+  contract' : ∀ PP → (EitherD-Post-⇒ Contract PP) → EitherD-weakestPre (executeBlockE bs block) PP
+  contract' PP impl = EitherD-⇒ (executeBlockE bs block) contract impl
 
 module executeAndInsertBlockESpec (bs0 : BlockStore) (vblock : ValidBlock) where
   block   = vbBlock vblock
