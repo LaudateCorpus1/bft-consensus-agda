@@ -44,11 +44,11 @@ executeAndInsertBlockE-Either  : BlockStore → Block → executeAndInsertBlockE
 
 executeBlockE
   : BlockStore → Block
-  → Either ErrLog ExecutedBlock
-
-executeBlockE₀
-  : BlockStore → Block
   → EitherD ErrLog ExecutedBlock
+
+executeBlockE-Either
+  : BlockStore → Block
+  → Either ErrLog ExecutedBlock
 
 getBlock : HashValue → BlockStore → Maybe ExecutedBlock
 
@@ -194,11 +194,14 @@ executeAndInsertBlockM b = do
       ok eb
 
 module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
-  continue step₁ : executeAndInsertBlockE-Types.VariantFor EitherD
+  module VF where
+    open executeAndInsertBlockE-Types public
+  continue step₁ : VF.VariantFor EitherD
   continue = step₁
-  step₂ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
-  step₃ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
-  step₄ : ExecutedBlock → executeAndInsertBlockE-Types.VariantFor EitherD
+
+  step₂ : ExecutedBlock → VF.VariantFor EitherD
+  step₃ : ExecutedBlock → VF.VariantFor EitherD
+  step₄ : ExecutedBlock → VF.VariantFor EitherD
 
   step₀ =
     -- NOTE: if the hash is already in our blockstore, then HASH-COLLISION
@@ -218,7 +221,7 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
       else step₂ bsr
 
   step₂ _ = do
-        eb ← case⊎D executeBlockE bs0 block of λ where
+        eb ← case⊎D (executeBlockE-Either bs0 block) of λ where
           (Right res) → RightD res
           -- OBM-LBFT-DIFF : This is never thrown in OBM.
           -- It is thrown by StateComputer in Rust (but not in OBM).
@@ -229,9 +232,9 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
               -- need to change to some sort of 'fold' because 'executeBlockE'
               -- would change the state, so the state passed to 'executeBlockE'
               -- would no longer be 'bs0'.
-              case⊎D (forM) blocksToReexecute (executeBlockE bs0 ∘ (_^∙ ebBlock)) of λ where
+              case⊎D (forM) blocksToReexecute (executeBlockE-Either bs0 ∘ (_^∙ ebBlock)) of λ where
                 (Left  e) → LeftD e
-                (Right _) → executeBlockE₀ bs0 block
+                (Right _) → executeBlockE bs0 block
           (Left err) → LeftD err
         step₃ eb
 
@@ -246,7 +249,7 @@ module executeAndInsertBlockE (bs0 : BlockStore) (block : Block) where
         (bt' , eb') ← BlockTree.insertBlockE eb (bs0 ^∙ bsInner)
         pure ((bs0 & bsInner ∙~ bt') , eb')
 
-  E : executeAndInsertBlockE-Types.VariantFor Either
+  E : VF.VariantFor Either
   E = toEither step₀
 
 abstract
@@ -259,21 +262,34 @@ abstract
   executeAndInsertBlockE-Either-≡ = refl
 
 module executeBlockE (bs : BlockStore) (block : Block) where
+  VariantFor : ∀ {ℓ} EL → EL-func {ℓ} EL
+  VariantFor EL = EL ErrLog ExecutedBlock
 
+  step₀ : VariantFor EitherD
   step₀ = do
     case SCBS.compute (bs ^∙ bsStateComputer) block (block ^∙ bParentId) of λ where
-      (Left e)                   → Left fakeErr -- (here' e)
+      (Left e)                   → LeftD fakeErr -- (here' e)
       (Right stateComputeResult) →
         pure (ExecutedBlock∙new block stateComputeResult)
    where
     here' : List String → List String
     here' t = "BlockStore" ∷ "executeBlockE" {-∷ lsB block-} ∷ t
 
+  E : VariantFor Either
+  E = toEither step₀
+
 abstract
   executeBlockE = executeBlockE.step₀
-  executeBlockE₀ bs block = fromEither $ executeBlockE bs block
-  executeBlockE≡ : ∀ {bs block r} → executeBlockE bs block ≡ r → executeBlockE₀ bs block ≡ fromEither r
-  executeBlockE≡ refl = refl
+  executeBlockE≡ : executeBlockE ≡ executeBlockE.step₀
+  executeBlockE≡ = refl
+
+  executeBlockE-Either = executeBlockE.E
+  executeBlockE-Either-≡ : executeBlockE-Either ≡ executeBlockE.E
+  executeBlockE-Either-≡ = refl
+
+  executeBlockE-Either-ret : ∀ {bs block r} → executeBlockE-Either bs block ≡ r → EitherD-run (executeBlockE bs block) ≡ r
+  executeBlockE-Either-ret refl = refl
+
 ------------------------------------------------------------------------------
 
 insertSingleQuorumCertM
