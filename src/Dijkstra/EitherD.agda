@@ -81,6 +81,9 @@ EitherD-weakestPre-bindPost f P (Left x) =
 EitherD-weakestPre-bindPost f P (Right y) =
   ∀ c → c ≡ y → EitherD-weakestPre (f c) P
 
+-- For any post contition P and EitherD program m, if
+-- EitherD-weakestPre m P holds, then P holds of the result
+-- of running m.
 EitherD-Contract : (m : EitherD E A) → Set₁
 EitherD-Contract{E}{A} m =
   (P : EitherD-Post E A)
